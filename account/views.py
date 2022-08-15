@@ -39,6 +39,7 @@ class UserLoginView(APIView):
         email = serializer.data.get('email')
         password = serializer.data.get('password')
         user = authenticate(email=email, password=password)
+
         if user is not None:
             token = get_tokens_for_user(user)
             return Response({'token': token, 'msg': 'Login Success'}, status=status.HTTP_200_OK)
@@ -64,16 +65,22 @@ class AllUsersView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def put(self, request, id, format=None):
-        user = User.objects.get(id=id)
-        serializer = AllUsersSerializer(user, data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response({'msg': 'User update successfully!'})
+        role = request.user.role
+        if role == 'Staff' or role == 'Admin':
+            user = User.objects.get(id=id)
+            serializer = AllUsersSerializer(user, data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response({'msg': 'User update successfully!'})
+        return Response({'errors': {'msg': 'You are not authorized to perform this action'}}, status.HTTP_403_FORBIDDEN)
 
     def delete(self, request, id, format=None):
-        user = User.objects.get(id=id)
-        user.delete()
-        return Response({'msg': 'User deleted successfully!'})
+        role = request.user.role
+        if role == 'Admin':
+            user = User.objects.get(id=id)
+            user.delete()
+            return Response({'msg': 'User deleted successfully!'}, status=status.HTTP_200_OK)
+        return Response({'errors': {'msg': 'You are not authorized to perform this action'}}, status.HTTP_403_FORBIDDEN)
 
 
 class UserChangePasswordView(APIView):
